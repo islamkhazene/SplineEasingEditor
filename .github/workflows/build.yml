@@ -1,0 +1,52 @@
+name: Build SplineEasingEditor Setup
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install PyInstaller
+        run: python -m pip install pyinstaller
+
+      - name: Build EXE
+        run: |
+          python -m PyInstaller `
+            --onefile `
+            --noconsole `
+            --name "SplineEasingEditor" `
+            --hidden-import tkinter `
+            --hidden-import tkinter.ttk `
+            src/main.py
+
+      - name: Prepare installer files
+        run: |
+          New-Item -ItemType Directory -Force -Path installer/dist
+          New-Item -ItemType Directory -Force -Path installer/output
+          Copy-Item dist/SplineEasingEditor.exe installer/dist/SplineEasingEditor.exe
+          Copy-Item src/SplineEasingEditor.py installer/SplineEasingEditor.py
+
+      - name: Install Inno Setup
+        run: choco install innosetup --version=6.3.3 -y
+
+      - name: Build Setup installer
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/setup.iss
+
+      - name: Upload Setup.exe
+        uses: actions/upload-artifact@v4
+        with:
+          name: SplineEasingEditor_Setup
+          path: installer/output/SplineEasingEditor_Setup.exe
+          retention-days: 30
