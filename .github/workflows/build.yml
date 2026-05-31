@@ -8,6 +8,7 @@ on:
 jobs:
   build:
     runs-on: windows-latest
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,14 +36,18 @@ jobs:
           New-Item -ItemType Directory -Force -Path installer/dist
           New-Item -ItemType Directory -Force -Path installer/output
           Copy-Item dist/SplineEasingEditor.exe installer/dist/SplineEasingEditor.exe
-          Copy-Item src/SplineEasingEditor.py installer/SplineEasingEditor.py
+          Copy-Item src/SplineEasingEditor.py   installer/SplineEasingEditor.py
 
-      - name: Install Inno Setup
-        run: choco install innosetup --version=6.3.3 -y
-
-      - name: Build Setup installer
+      - name: Find and use existing Inno Setup
         run: |
-          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer/setup.iss
+          $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $iscc) {
+            choco install innosetup -y --force
+            $iscc = Get-ChildItem "C:\Program Files*\Inno Setup*\ISCC.exe" | Select-Object -First 1
+          }
+          Write-Host "Using Inno Setup at: $($iscc.FullName)"
+          & $iscc.FullName installer/setup.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
       - name: Upload Setup.exe
         uses: actions/upload-artifact@v4
